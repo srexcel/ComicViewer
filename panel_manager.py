@@ -2,6 +2,7 @@ import os
 import zipfile
 import rarfile
 from utils import parse_gui_file, save_gui_file, ensure_directory_exists
+from PIL import Image
 
 class PanelManager:
     def __init__(self, input_file):
@@ -12,6 +13,7 @@ class PanelManager:
         self.panel_corrections = self.load_gui_file()
 
     def open_archive(self, file_path):
+        print(f"Intentando abrir el archivo: {file_path}")
         if file_path.lower().endswith(('.cbr', '.rar')):
             return rarfile.RarFile(file_path)
         elif file_path.lower().endswith(('.cbz', '.zip')):
@@ -23,8 +25,14 @@ class PanelManager:
         return sorted([f for f in self.archive.namelist() if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
 
     def extract_page(self, page_index):
-        self.archive.extract(self.get_image_files()[page_index], path=self.extract_dir)
-        return os.path.join(self.extract_dir, self.get_image_files()[page_index])
+        image_files = self.get_image_files()
+        extracted_path = os.path.join(self.extract_dir, image_files[page_index])
+        try:
+            self.archive.extract(image_files[page_index], path=self.extract_dir)
+        except rarfile.BadRarFile as e:
+            print(f"Error al extraer la página: {e}")
+            return None
+        return extracted_path
 
     def load_gui_file(self):
         gui_path = self.input_file + ".gui"
@@ -43,3 +51,12 @@ class PanelManager:
 
     def save_gui_file(self):
         save_gui_file(self.input_file + ".gui", self.panel_corrections)
+
+    def get_num_pages(self):
+        return len(self.get_image_files())
+
+    def get_page_path(self, page_index):
+        path = self.extract_page(page_index)
+        if path is None:
+            raise ValueError(f"No se pudo extraer la página {page_index}")
+        return path

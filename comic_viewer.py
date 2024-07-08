@@ -1,10 +1,10 @@
 import os
-from tkinter import Tk, filedialog, Button, Canvas, BOTH, LEFT, RIGHT, Y, VERTICAL, messagebox, Frame, Scrollbar, Label, X
+from tkinter import Tk, filedialog, Button, Canvas, BOTH, LEFT, RIGHT, Y, VERTICAL, Frame, Scrollbar, Label, X, ALL, messagebox
 from panel_manager import PanelManager
 from panel_editor import PanelEditor
 from panel_order_editor import PanelOrderEditor
 from panel_recalculation import recalcular_paneles
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, UnidentifiedImageError
 from utils import ensure_directory_exists
 
 class ComicViewer:
@@ -19,6 +19,9 @@ class ComicViewer:
         self.extract_dir = 'extracted_comic'
         ensure_directory_exists(self.extract_dir)
         self.panel_manager = None
+        self.panel_images = []
+        self.current_image = None
+        self.canvas.bind('<Configure>', self.on_resize)
 
     def create_ui(self):
         self.frame = Frame(self.root)
@@ -46,225 +49,139 @@ class ComicViewer:
         self.next_button.pack(fill=X)
         self.toggle_button = Button(self.button_frame, text="Ver Paneles", command=self.toggle_panels)
         self.toggle_button.pack(fill=X)
-        self.correct_button = Button(self.button_frame, text="Agregar/Corregir Paneles", command=self.correct_panels)
-        self.correct_button.pack(fill=X)
-        self.delete_button = Button(self.button_frame, text="Borrar Panel", command=self.delete_current_panel)
-        self.delete_button.pack(fill=X)
-        self.save_button = Button(self.button_frame, text="Guardar", command=self.save_corrections)
-        self.save_button.pack(fill=X)
-        self.reload_button = Button(self.button_frame, text="Recargar guía", command=self.reload_gui)
-        self.reload_button.pack(fill=X)
+        self.zoom_in_button = Button(self.button_frame, text="Aumentar Paneles", command=self.increase_panels)
+        self.zoom_in_button.pack(fill=X)
+        self.zoom_out_button = Button(self.button_frame, text="Reducir Paneles", command=self.decrease_panels)
+        self.zoom_out_button.pack(fill=X)
+        self.recalc_button = Button(self.button_frame, text="Recalcular Paneles", command=self.recalculate_panels)
+        self.recalc_button.pack(fill=X)
         self.reorder_button = Button(self.button_frame, text="Reordenar Paneles", command=self.reorder_panels)
         self.reorder_button.pack(fill=X)
-        self.refresh_panels_button = Button(self.button_frame, text="Recargar Paneles", command=self.refresh_panels)
-        self.refresh_panels_button.pack(fill=X)
-        self.recalculate_panels_button = Button(self.button_frame, text="Recalculo de paneles", command=self.recalculate_panels)
-        self.recalculate_panels_button.pack(fill=X)
-
-        self.info_label = Label(self.button_frame, text="", anchor="e", justify=RIGHT)
+        self.remove_zero_button = Button(self.button_frame, text="Eliminar Paneles de Tamaño Cero", command=self.remove_zero_size_panels)
+        self.remove_zero_button.pack(fill=X)
+        self.delete_panel_button = Button(self.button_frame, text="Borrar Panel", command=self.delete_current_panel)
+        self.delete_panel_button.pack(fill=X)
+        self.add_panel_button = Button(self.button_frame, text="Agregar/Modificar Panel", command=self.add_modify_panel)
+        self.add_panel_button.pack(fill=X)
+        self.fit_image_button = Button(self.button_frame, text="Ajustar Imagen", command=self.fit_image)
+        self.fit_image_button.pack(fill=X)
+        self.info_label = Label(self.button_frame, text="", anchor='w')
         self.info_label.pack(fill=X)
 
-        self.increase_panels_button = Button(self.button_frame, text="Más Paneles", command=self.increase_panels)
-        self.increase_panels_button.pack(fill=X)
-        self.decrease_panels_button = Button(self.button_frame, text="Menos Paneles", command=self.decrease_panels)
-        self.decrease_panels_button.pack(fill=X)
+    def on_resize(self, event):
+        if self.panel_manager:
+            if self.viewing_panels:
+                self.draw_panels()
+            else:
+                self.fit_image()
 
     def load_comic(self):
-        self.input_file = filedialog.askopenfilename(title="Selecciona el archivo de cómic", filetypes=[("Comic files", "*.cbr *.cbz *.rar *.zip")])
+        file_path = filedialog.askopenfilename(filetypes=[("Comic files", "*.cbz *.cbr")])
+        if file_path:
+            self.extract_comic(file_path)
+            self.panel_manager = PanelManager(file_path)
+            self.panel_manager.load_gui_file()
+            self.show_page(0)
 
-        if not self.input_file:
-            print("No se seleccionó ningún archivo.")
-            return
+    def extract_comic(self, file_path):
+        print(f"Extrayendo cómic desde {file_path}")
+        # Implementación de la extracción de archivos CBZ y CBR
 
-        try:
-            self.panel_manager = PanelManager(self.input_file)
-            self.image_files = self.panel_manager.get_image_files()
-            self.current_page = 0
-            self.current_panel = 0
+    def show_page(self, page_index):
+        if self.panel_manager:
+            self.current_page = page_index
             self.viewing_panels = False
-            self.show_current_page()
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo cargar el cómic: {str(e)}")
-            print(f"Error al cargar el cómic: {str(e)}")
-
-    def show_current_page(self):
-        print(f"Mostrando página actual: {self.current_page}")
-        page_path = self.panel_manager.extract_page(self.current_page)
-        if page_path:
+            self.panel_images = self.panel_manager.get_panels(page_index)
+            self.update_info_label()
             try:
-                image = Image.open(page_path)
-                self.tkimage = self.resize_image_to_canvas(image)
-                self.canvas.delete("all")  # Clear the canvas completely
-                self.canvas.create_image(self.canvas.winfo_width() // 2, self.canvas.winfo_height() // 2, anchor='center', image=self.tkimage)
-                self.panel_images = self.panel_manager.get_panels(self.current_page)
-                self.remove_zero_size_panels()  # Remover paneles de tamaño cero
-                if not self.viewing_panels:
-                    self.draw_panels()
-                self.update_info_label()
-                print("Página actual mostrada correctamente.")
-            except Exception as e:
-                messagebox.showerror("Error", f"No se pudo mostrar la página: {str(e)}")
-                print(f"Error al mostrar la página: {str(e)}")
+                self.display_image(self.panel_manager.get_page_path(page_index))
+            except ValueError as e:
+                messagebox.showerror("Error", str(e))
 
-    def resize_image_to_canvas(self, image):
-        canvas_width = self.canvas.winfo_width()
-        canvas_height = self.canvas.winfo_height()
+    def display_image(self, image_path):
+        try:
+            self.current_image = Image.open(image_path)
+            self.fit_image()
+        except UnidentifiedImageError:
+            print(f"Error: no se pudo identificar el archivo de imagen '{image_path}'.")
 
-        if canvas_width == 0 or canvas_height == 0:
-            print("Canvas size is zero. Returning original image.")
-            return ImageTk.PhotoImage(image)
-
-        image_ratio = image.width / image.height
-        canvas_ratio = canvas_width / canvas_height
-
-        if image_ratio > canvas_ratio:
-            new_width = canvas_width
-            new_height = int(canvas_width / image_ratio)
-        else:
-            new_height = canvas_height
-            new_width = int(canvas_height * image_ratio)
-
-        self.scale_x = image.width / new_width
-        self.scale_y = image.height / new_height
-
-        resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        tkimage = ImageTk.PhotoImage(resized_image)
-
-        print(f"Resizing image to: {new_width}x{new_height}")
-        return tkimage
-
-    def draw_panels(self):
-        for i, (x1, y1, x2, y2) in enumerate(self.panel_images):
-            scaled_coords = self.scale_coords(x1, y1, x2, y2, invert=True)
-            rect = self.canvas.create_rectangle(*scaled_coords, outline="red", width=5, tags=("panel", str(i)))
-            self.canvas.create_text(scaled_coords[0] + 5, scaled_coords[1] + 5, text=str(i + 1), anchor="nw", fill="white", tags=("panel", str(i)))
-            self.canvas.tag_bind(rect, "<Button-1>", lambda event, idx=i: self.select_panel(event, idx))
-            self.canvas.tag_bind(rect, "<Button-3>", lambda event, idx=i: self.delete_panel(event, idx))
-        print("Paneles dibujados:", self.panel_images)
-
-    def scale_coords(self, x1, y1, x2, y2, invert=False):
-        if invert:
-            return x1 / self.scale_x, y1 / self.scale_y, x2 / self.scale_x, y2 / self.scale_y
-        else:
-            return x1 * self.scale_x, y1 * self.scale_y, x2 * self.scale_x, y2 * self.scale_y
-
-    def show_current_panel(self):
-        print(f"Mostrando panel actual: {self.current_panel}")
-        if self.current_panel < len(self.panel_images):
-            page_path = self.panel_manager.extract_page(self.current_page)
-            if page_path:
-                try:
-                    x1, y1, x2, y2 = self.panel_images[self.current_panel]
-                    panel_img = Image.open(page_path).crop((x1, y1, x2, y2))
-                    self.tkimage = self.resize_image_to_canvas(panel_img)
-                    self.canvas.delete("all")  # Clear the canvas completely
-                    self.canvas.create_image(self.canvas.winfo_width() // 2, self.canvas.winfo_height() // 2, anchor='center', image=self.tkimage)
-                    self.update_info_label()
-                    print("Panel actual mostrado correctamente.")
-                except Exception as e:
-                    messagebox.showerror("Error", f"No se pudo mostrar el panel: {str(e)}")
-                    print(f"Error al mostrar el panel: {str(e)}")
-        else:
-            messagebox.showerror("Error", "No hay más paneles para mostrar.")
-            print("Error: No hay más paneles para mostrar.")
+    def fit_image(self):
+        if self.current_image:
+            img = self.current_image.copy()
+            canvas_width = self.canvas.winfo_width()
+            canvas_height = self.canvas.winfo_height()
+            img.thumbnail((canvas_width, canvas_height), Image.LANCZOS)
+            self.photo = ImageTk.PhotoImage(img)
+            self.canvas.create_image((canvas_width - img.width) // 2, (canvas_height - img.height) // 2, image=self.photo, anchor='nw')
+            self.canvas.config(scrollregion=self.canvas.bbox(ALL))
 
     def next_item(self):
-        print("Siguiente ítem.")
         if self.viewing_panels:
-            if self.current_panel < len(self.panel_images) - 1:
-                self.current_panel += 1
-                self.show_current_panel()
-            else:
-                self.next_page()
+            self.next_panel()
         else:
             self.next_page()
 
     def prev_item(self):
-        print("Ítem anterior.")
         if self.viewing_panels:
-            if self.current_panel > 0:
-                self.current_panel -= 1
-                self.show_current_panel()
-            else:
-                self.prev_page()
+            self.prev_panel()
         else:
             self.prev_page()
 
     def next_page(self):
-        print("Siguiente página.")
-        if self.current_page < len(self.image_files) - 1:
+        if self.current_page < self.panel_manager.get_num_pages() - 1:
             self.current_page += 1
-            self.current_panel = 0
-            self.reload_gui()  # Recargar la guía al cambiar de página
-            self.show_current_page() if not self.viewing_panels else self.show_current_panel()
+            self.show_page(self.current_page)
 
     def prev_page(self):
-        print("Página anterior.")
         if self.current_page > 0:
             self.current_page -= 1
-            self.current_panel = 0
-            self.reload_gui()  # Recargar la guía al cambiar de página
-            self.show_current_page() if not self.viewing_panels else self.show_current_panel()
+            self.show_page(self.current_page)
 
     def toggle_panels(self):
         self.viewing_panels = not self.viewing_panels
-        print(f"Modo de visualización cambiado a {'paneles' if self.viewing_panels else 'página completa'}.")
         if self.viewing_panels:
-            self.show_current_panel()
+            self.show_panels()
         else:
-            self.show_current_page()
+            self.show_page(self.current_page)
 
-    def correct_panels(self):
-        editor = PanelEditor(self.root, self.panel_manager, self.current_page)
-        self.root.wait_window(editor.top)
+    def show_panels(self):
         self.panel_images = self.panel_manager.get_panels(self.current_page)
-        self.draw_panels()
-        self.update_info_label()
-        print("Modo de corrección de paneles activado.")
+        self.current_panel = 0
+        if self.panel_images:  # Verificar si hay paneles disponibles
+            self.display_panel()
 
-    def delete_current_panel(self):
-        print(f"Eliminando panel actual: {self.current_panel}.")
-        if self.current_panel < len(self.panel_images):
-            self.panel_manager.delete_panel(self.current_page, self.current_panel)
-            self.panel_manager.save_gui_file()
-            self.reload_gui()
-            print(f"Panel actual {self.current_panel} eliminado.")
+    def next_panel(self):
+        if self.current_panel < len(self.panel_images) - 1:
+            self.current_panel += 1
+            self.display_panel()
 
-    def save_corrections(self):
-        self.panel_manager.save_gui_file()
-        print("Correcciones guardadas:", self.panel_manager.panel_corrections)
+    def prev_panel(self):
+        if self.current_panel > 0:
+            self.current_panel -= 1
+            self.display_panel()
 
-    def reload_gui(self):
-        print("Recargando GUI.")
-        self.panel_manager = PanelManager(self.input_file)  # Recargar el archivo .gui
-        self.panel_images = self.panel_manager.get_panels(self.current_page)
-        self.show_current_page()
-        print("GUI recargado.")
-
-    def refresh_panels(self):
-        print("Recargando paneles desde el archivo .gui.")
-        self.panel_images = self.panel_manager.get_panels(self.current_page)
-        self.draw_panels()
-        self.update_info_label()
-        print("Paneles recargados.")
-        if self.viewing_panels and self.current_panel < len(self.panel_images):
-            x1, y1, x2, y2 = self.panel_images[self.current_panel]
-            self.adjust_window_to_panel(x1, y1, x2, y2)
+    def display_panel(self):
+        if self.panel_images:
+            panel = self.panel_images[self.current_panel]
+            x1, y1, x2, y2 = panel
+            img = self.current_image.crop((x1, y1, x2, y2))
+            canvas_width = self.canvas.winfo_width()
+            canvas_height = self.canvas.winfo_height()
+            img.thumbnail((canvas_width, canvas_height), Image.LANCZOS)
+            self.photo = ImageTk.PhotoImage(img)
+            self.canvas.create_image((canvas_width - img.width) // 2, (canvas_height - img.height) // 2, image=self.photo, anchor='nw')
+            self.canvas.config(scrollregion=self.canvas.bbox(ALL))
+            self.update_info_label()
 
     def update_info_label(self):
-        info_text = f"Modo: {'Paneles' if self.viewing_panels else 'Página completa'}\n"
-        info_text += f"Página: {self.current_page + 1}\n"
-        if self.viewing_panels:
-            info_text += f"Panel: {self.current_panel + 1} de {len(self.panel_images)}\n"
-        for i, (x1, y1, x2, y2) in enumerate(self.panel_images):
-            info_text += f"Panel {i + 1}: ({x1}, {y1}), ({x2}, {y2})\n"
-        self.info_label.config(text=info_text)
-        print("Etiqueta de información actualizada.")
+        if self.panel_manager:
+            self.info_label.config(text=f"Página: {self.current_page + 1} de {self.panel_manager.get_num_pages()} | Panel: {self.current_panel + 1} de {len(self.panel_images)}")
 
-    def select_panel(self, event, idx):
-        self.current_panel = idx
-        x1, y1, x2, y2 = self.panel_images[idx]
-        print(f"Panel {idx} seleccionado: ({x1}, {y1}, {x2}, {y2})")
+    def draw_panels(self):
+        self.canvas.delete('panel')
+        for i, (x1, y1, x2, y2) in enumerate(self.panel_images):
+            rect = self.canvas.create_rectangle(x1, y1, x2, y2, outline='red', width=5, tags='panel')
+            self.canvas.create_text(x2 - 10, y1 + 10, text=str(i + 1), fill='white', anchor='ne', tags='panel')
 
     def remove_zero_size_panels(self):
         print("Eliminando paneles de tamaño cero.")
@@ -272,6 +189,18 @@ class ComicViewer:
         self.panel_manager.panel_corrections[self.current_page] = self.panel_images
         self.panel_manager.save_gui_file()
         print("Paneles de tamaño cero eliminados.")
+
+    def delete_current_panel(self):
+        if self.panel_images:
+            del self.panel_images[self.current_panel]
+            self.panel_manager.panel_corrections[self.current_page] = self.panel_images
+            self.panel_manager.save_gui_file()
+            if self.current_panel >= len(self.panel_images):
+                self.current_panel = len(self.panel_images) - 1
+            if self.panel_images:
+                self.display_panel()
+            else:
+                self.show_page(self.current_page)
 
     def adjust_window_to_panel(self, x1, y1, x2, y2):
         panel_width = x2 - x1
@@ -288,9 +217,10 @@ class ComicViewer:
         print("Paneles reordenados.")
 
     def save_new_order(self, new_order):
-        self.panel_images = [self.panel_images[i] for i in new_order]
-        self.panel_manager.panel_corrections[self.current_page] = self.panel_images
+        reordered_panels = [self.panel_images[i] for i in new_order]
+        self.panel_manager.panel_corrections[self.current_page] = reordered_panels
         self.panel_manager.save_gui_file()
+        self.panel_images = reordered_panels
         print("Nuevo orden de paneles guardado.")
 
     def recalculate_panels(self):
@@ -302,6 +232,12 @@ class ComicViewer:
         self.refresh_panels()
         print("Paneles recalculados:", new_panels)
 
+    def refresh_panels(self):
+        if self.viewing_panels:
+            self.show_panels()
+        else:
+            self.show_page(self.current_page)
+
     def increase_panels(self):
         self.panels_to_show += 1
         self.refresh_panels()
@@ -311,3 +247,17 @@ class ComicViewer:
             self.panels_to_show -= 1
         self.refresh_panels()
 
+    def add_modify_panel(self):
+        if self.panel_manager:
+            panel_editor = PanelEditor(self.root, self.panel_manager, self.current_page)
+            self.root.wait_window(panel_editor.top)
+            self.panel_images = self.panel_manager.get_panels(self.current_page)
+            self.draw_panels()
+            self.update_info_label()
+            print("Paneles agregados/modificados.")
+
+if __name__ == "__main__":
+    root = Tk()
+    viewer = ComicViewer(root)
+    root.geometry("1400x1000")
+    root.mainloop()
