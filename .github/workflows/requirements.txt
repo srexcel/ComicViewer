@@ -1,5 +1,0 @@
-Pillow
-rarfile
-pyinstaller
-numpy
-opencv-python
