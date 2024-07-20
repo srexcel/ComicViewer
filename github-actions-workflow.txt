@@ -26,7 +26,7 @@ jobs:
     
     - name: Build executable
       run: |
-        pyinstaller --onefile --windowed --add-data "*.json;." --add-data "*.txt;." --add-data "*.py;." --hidden-import rarfile --name ComicViewer main.py
+        pyinstaller --onefile --windowed --add-data "*.json;." --add-data "*.txt;." --hidden-import rarfile --name ComicViewer main.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v2

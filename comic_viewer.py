@@ -48,7 +48,7 @@ class ComicViewer:
         
     @log_function
     def __init__(self, root):
-        self.translation_text_CV = Text(root)
+        self.translation_text = Text(root)
         self.comments_text = Text(root)
         self.root = root
         self.root.title("Comic Viewer")
@@ -95,7 +95,7 @@ class ComicViewer:
         
     def search_web(self):
         try:
-            selection = self.translation_text_CV.get(SEL_FIRST, SEL_LAST)
+            selection = self.translation_text.get(SEL_FIRST, SEL_LAST)
         except TclError:
             selection = None
         if selection:
@@ -130,8 +130,8 @@ class ComicViewer:
             messagebox.showinfo("Información", "Por favor, seleccione un texto primero.")
 
     def load_translation_and_comments(self, translation, comments):
-        self.translation_text_CV.delete('1.0', END)
-        self.translation_text_CV.insert('1.0', translation)
+        self.translation_text.delete('1.0', END)
+        self.translation_text.insert('1.0', translation)
         self.comments_text.delete('1.0', END)
         self.comments_text.insert('1.0', comments)
         
@@ -243,8 +243,8 @@ class ComicViewer:
             main_frame = Frame(self.translation_window)
             main_frame.pack(fill=BOTH, expand=1)
     
-            self.translation_text_CV = Text(main_frame, wrap=WORD, font=("Arial", self.text_size))
-            self.translation_text_CV.pack(fill=BOTH, expand=1)
+            self.translation_text = Text(main_frame, wrap=WORD, font=("Arial", self.text_size))
+            self.translation_text.pack(fill=BOTH, expand=1)
     
             # Añadir caja de comentarios redimensionable
             comments_frame = Frame(main_frame)
@@ -272,7 +272,7 @@ class ComicViewer:
             comments_button = Button(button_frame, text="Comentarios", command=self.open_comments_window)
             comments_button.pack(side=LEFT, padx=5)
     
-            web_search_button = Button(button_frame, text="Búsqueda web text", command=self.search_web)
+            web_search_button = Button(button_frame, text="Búsqueda web", command=self.search_web)
             web_search_button.pack(side=LEFT, padx=5)
     
             increase_text_size_button = Button(button_frame, text="Aumentar tamaño de texto", command=self.increase_text_size)
@@ -288,7 +288,7 @@ class ComicViewer:
 
 
     def save_translation_changes(self):
-        content = self.translation_text_CV.get(1.0, END).strip()
+        content = self.translation_text.get(1.0, END).strip()
         comments = self.comments_text.get(1.0, END).strip()
         if content:
             try:
@@ -321,7 +321,7 @@ class ComicViewer:
 
     # def search_web(self):
     #     try:
-    #         selection = self.translation_text _CV.get(SEL_FIRST, SEL_LAST)
+    #         selection = self.translation_text.get(SEL_FIRST, SEL_LAST)
     #     except TclError:
     #         selection = None
     #     if selection:
@@ -354,13 +354,13 @@ class ComicViewer:
     #         messagebox.showinfo("Información", "Por favor, seleccione un texto primero.")
     
     # def increase_text_size(self):
-    #     current_size = int(self.translation_text _CV['font'].split()[1])
-    #     self.translation_text _CV.configure(font=("Arial", current_size + 2))
+    #     current_size = int(self.translation_text['font'].split()[1])
+    #     self.translation_text.configure(font=("Arial", current_size + 2))
     
     # def decrease_text_size(self):
-    #     current_size = int(self.translation_text _CV['font'].split()[1])
+    #     current_size = int(self.translation_text['font'].split()[1])
     #     if current_size > 8:
-    #         self.translation_text _CV.configure(font=("Arial", current_size - 2))
+    #         self.translation_text.configure(font=("Arial", current_size - 2))
 
 
 
@@ -950,7 +950,7 @@ class ComicViewer:
                 self.panel_manager.input_file,  # `comic_file`
                 self.translation_config  # `translation_config`
             )
-            self.root.wait_window(translation_editor)
+            self.root.wait_window(translation_editor.top)
 
     @log_function    
     def get_current_panel_image(self):
@@ -1023,7 +1023,7 @@ class ComicViewer:
         if self.current_panel in self.translations:
             for translation in self.translations[self.current_panel]:
                 x1, y1, x2, y2 = translation['bbox']
-                self.add_translation_text_CV(translation)
+                self.add_translation_text(translation)
         else:
             logger.warning("No translation found for the current panel")
     
@@ -1034,7 +1034,7 @@ class ComicViewer:
             if panel_num < len(self.panel_images):
                 for translation in translations:
                     x1, y1, x2, y2 = translation['bbox']
-                    self.add_translation_text_CV(translation)
+                    self.add_translation_text(translation)
     
 
     
@@ -1159,7 +1159,7 @@ class ComicViewer:
 
             
     def load_translations_to_text(self):
-        self.translation_text_CV.delete(1.0, END)
+        self.translation_text.delete(1.0, END)
         filename = f"{os.path.splitext(self.panel_manager.input_file)[0]}_trans.json"
         logger.info(f"Loading translations from {filename}")
         logger.info(f"Current page: {self.current_page}, Current panel: {self.current_panel}")
@@ -1173,26 +1173,26 @@ class ComicViewer:
                 for translation in all_translations:
                     if translation['page'] == self.current_page and translation['panel'] == self.current_panel:
                         found_translation = True
-                        self.translation_text_CV.insert(END, f"Página {self.current_page + 1}\n", "page_label")
+                        self.translation_text.insert(END, f"Página {self.current_page + 1}\n", "page_label")
                         for i, text in enumerate(translation['texts'], 1):
-                            self.translation_text_CV.insert(END, f"Panel {i}\n", "panel_label")
-                            self.translation_text_CV.insert(END, f"Original: {text['original']}\n")
+                            self.translation_text.insert(END, f"Panel {i}\n", "panel_label")
+                            self.translation_text.insert(END, f"Original: {text['original']}\n")
                             for lang, trans in text['translations'].items():
-                                self.translation_text_CV.insert(END, f"Traducción ({lang}): {trans}\n")
-                            self.translation_text_CV.insert(END, "\n")
+                                self.translation_text.insert(END, f"Traducción ({lang}): {trans}\n")
+                            self.translation_text.insert(END, "\n")
                         break
                 
                 if not found_translation:
-                    self.translation_text_CV.insert(END, f"No hay traducciones disponibles para la página {self.current_page + 1}, panel {self.current_panel + 1}.")
+                    self.translation_text.insert(END, f"No hay traducciones disponibles para la página {self.current_page + 1}, panel {self.current_panel + 1}.")
             except Exception as e:
                 logger.error(f"Error loading translations: {str(e)}", exc_info=True)
-                self.translation_text_CV.insert(END, f"Error al cargar las traducciones: {str(e)}")
+                self.translation_text.insert(END, f"Error al cargar las traducciones: {str(e)}")
         else:
-            self.translation_text_CV.insert(END, "No se encontró el archivo de traducciones.")
+            self.translation_text.insert(END, "No se encontró el archivo de traducciones.")
         
         # Configurar etiquetas para el formato de texto
-        self.translation_text_CV.tag_configure("page_label", foreground="red", font=("Arial", self.text_size, "bold"))
-        self.translation_text_CV.tag_configure("panel_label", foreground="red", font=("Arial", self.text_size, "bold"))
+        self.translation_text.tag_configure("page_label", foreground="red", font=("Arial", self.text_size, "bold"))
+        self.translation_text.tag_configure("panel_label", foreground="red", font=("Arial", self.text_size, "bold"))
             
             
 
