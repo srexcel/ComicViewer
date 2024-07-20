@@ -25,21 +25,29 @@ jobs:
     - name: Build executable with PyInstaller
       run: pyinstaller --onefile --windowed --name=ComicViewer main.py
 
+    - name: Create Tag
+      id: create_tag
+      run: |
+        TAG_NAME="v1.0.$(date +'%s')"
+        echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
+        git tag ${TAG_NAME}
+        git push origin ${TAG_NAME}
+
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets._GITHUB_TOKEN }}  # O usa MY_GITHUB_TOKEN si usaste ese nombre
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{ env.TAG_NAME }}
+        release_name: Release ${{ env.TAG_NAME }}
         draft: false
         prerelease: false
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets._GITHUB_TOKEN }}  # O usa MY_GITHUB_TOKEN si usaste ese nombre
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./dist/ComicViewer.exe
