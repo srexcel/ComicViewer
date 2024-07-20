@@ -1,5 +1,1 @@
-pyinstaller
-rarfile
-pillow
-opencv-python
-tk
+Flask==2.0.1
