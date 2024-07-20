@@ -17,14 +17,10 @@ def run_command(command):
         raise
 
 def commit_and_push():
-    files_to_add = [
-        'main.py',
-        'requirements.txt',
-        'setup_and_run.py',
-        '.github/workflows/build.yml'
-    ]
+    # Añadir todos los archivos modificados
+    run_command(["git", "add", "--all"])
     
-    run_command(["git", "add"] + files_to_add)
+    # Hacer commit y push
     run_command(["git", "commit", "-m", "Update files and GitHub Action workflow"])
     run_command(["git", "push"])
 
@@ -42,7 +38,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-
+    
     steps:
     - uses: actions/checkout@v2
     
@@ -95,14 +91,14 @@ def get_github_token():
 
 def main():
     github_token = get_github_token()
-
+    
     try:
         print("Creando archivo de workflow para GitHub Actions...")
         create_github_action_workflow()
-
+        
         print("Haciendo commit y push de los cambios...")
         commit_and_push()
-
+        
         print("Proceso completado con éxito.")
         print("El ejecutable se creará automáticamente en GitHub cuando se haga push a la rama principal.")
     except Exception as e:

@@ -1,14 +1,12 @@
-name: Build and Package
+name: Build Executable
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -16,19 +14,34 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.10
+        python-version: '3.x'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller
         pip install -r requirements.txt
+        pip install pyinstaller
 
-    - name: Build executable
-      run: pyinstaller --onefile --windowed main.py
+    - name: Build executable with PyInstaller
+      run: pyinstaller --onefile --windowed --name=ComicViewer main.py
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets._GITHUB_TOKEN }}  # O usa MY_GITHUB_TOKEN si usaste ese nombre
       with:
-        name: executable
-        path: dist/
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets._GITHUB_TOKEN }}  # O usa MY_GITHUB_TOKEN si usaste ese nombre
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/ComicViewer.exe
+        asset_name: ComicViewer.exe
+        asset_content_type: application/vnd.microsoft.portable-executable
